@@ -7,7 +7,7 @@ from tqdm import tqdm
 import PIL.Image as Image
 
 def make_KITTI_format(bbox, object_class, size, t_size):
-    # uselesee values
+    # useless values
     truncated = 0
     occlusion = 3
     alpha = -1
@@ -62,13 +62,16 @@ def main():
     else:
         replace_json={}
     total_label = {}
+
     json_list = glob(f'{input_dir}/**/*.json', recursive=True)
 
+    del_list = ['sunny', 'day', 'night', 'rainy', 'snow', 'foggy', 'snowy', 'blacklight', 'backlight', 'personal_mobility', 'hdv', 'hdv_back', 'bicycle']
+    
     for json_file in tqdm(json_list):
         img_path = dirname(json_file).replace('json','img')
         label_data = load_json(json_file)
         img_name = label_data['asset']['name']
-        label_file_name = img_name.replace('jpg','txt')
+        label_file_name = img_name.replace('jpg','txt').replace('png','txt')
         
         # add road info for road
         line = ''
@@ -77,7 +80,7 @@ def main():
             img = Image.open(join(img_path, img_name))
             size = img.size
             img = img.resize((target_size[0], target_size[1]))
-            img.save(join(output_dir, 'img', img_name))
+            img.save(join(output_dir, 'img', img_name).replace('png','jpg'), subsampling=-1)
 
             for data in label_data['regions']:
                 object_class = data['tags'][0]
@@ -97,7 +100,8 @@ def main():
                 if (args.filtering is not None) and ((bbox[1] + bbox[3]) / 2) < args.filtering:
                     continue
 
-                line += make_KITTI_format(bbox, object_class, size, target_size)
+                if object_class not in del_list:
+                    line += make_KITTI_format(bbox, object_class, size, target_size)
 
 
             f = open(join(output_dir, 'label', label_file_name), 'w')

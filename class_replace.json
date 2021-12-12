@@ -1,0 +1,14 @@
+{ 
+"car_back": "car",
+"bus_back": "bus", 
+"motorcycle_back": "motorcycle", 
+"truck_back": "truck", 
+"ambulance_back": "car", 
+"police_back": "car", 
+"ambulance": "car", 
+"police": "car", 
+"firetruck_back": "truck", 
+"firetruck": "truck", 
+"person": "pedestrian", 
+"adult": "pedestrian"
+}

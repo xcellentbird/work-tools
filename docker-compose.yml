@@ -1,0 +1,108 @@
+version: '2.2'
+services:
+  es01:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.7.1
+    container_name: es01
+    environment:
+      - node.name=es01
+      - cluster.name=es-docker-cluster
+      - path.data=/usr/share/elasticsearch/data
+      - path.logs=/usr/share/elasticsearch/logs
+      - discovery.seed_hosts=es02,es03
+      - cluster.initial_master_nodes=es01,es02,es03
+      - bootstrap.memory_lock=true
+      - network.host=_local_,_site_
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - data01:/usr/share/elasticsearch/data:rw
+      - logs01:/usr/share/elasticsearch/logs:rw
+    ports:
+      - 9200:9200
+    networks:
+      - elastic
+
+  es02:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.7.1
+    container_name: es02
+    environment:
+      - node.name=es02
+      - cluster.name=es-docker-cluster
+      - path.data=/usr/share/elasticsearch/data
+      - path.logs=/usr/share/elasticsearch/logs
+      - discovery.seed_hosts=es01,es03
+      - cluster.initial_master_nodes=es01,es02,es03
+      - bootstrap.memory_lock=true
+      - network.host=_local_,_site_
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - data02:/usr/share/elasticsearch/data:rw
+      - logs02:/usr/share/elasticsearch/logs:rw
+    ports:
+      - 9201:9201
+    networks:
+      - elastic
+
+  es03:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.7.1
+    container_name: es03
+    environment:
+      - node.name=es03
+      - cluster.name=es-docker-cluster
+      - path.data=/usr/share/elasticsearch/data
+      - path.logs=/usr/share/elasticsearch/logs
+      - discovery.seed_hosts=es01,es02
+      - cluster.initial_master_nodes=es01,es02,es03
+      - bootstrap.memory_lock=true
+      - network.host=_local_,_site_
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - data03:/usr/share/elasticsearch/data:rw
+      - logs03:/usr/share/elasticsearch/logs:rw
+    ports:
+      - 9202:9202
+    networks:
+      - elastic
+
+  kib01:
+    image: docker.elastic.co/kibana/kibana:7.7.1
+    container_name: kib01
+    ports:
+      - 5601:5601
+    environment:
+      #- server.host=10.178.0.27
+      #- server.name=my_kibana
+      #- elasticsearch.hosts=10.178.0.27:9200
+      ELASTICSEARCH_URL: http://es01:9200
+      ELASTICSEARCH_HOSTS: http://es01:9200
+    networks:
+      - elastic
+
+volumes:
+  data01:
+    driver: local
+  data02:
+    driver: local
+  data03:
+    driver: local
+  logs01:
+    driver: local
+  logs02:
+    driver: local
+  logs03:
+    driver: local
+
+networks:
+  elastic:
+    driver: bridge

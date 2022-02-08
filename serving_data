@@ -1,0 +1,190 @@
+import os
+import csv
+import argparse
+import paramiko
+from os.path import split, join
+from tqdm import tqdm
+from pprint import pprint
+from PIL import Image, ImageDraw
+
+
+ADDRESS = '14.63.1.76' #'211.219.51.205'
+USERNAME = 'Nota-its'
+PASSWORD = "Nota180928!!"
+PORT = 5059
+NUM_SHOW_FAILED = 20
+TARGET_SIZE = (960, 544)
+
+def get_parser():
+    parser = argparse.ArgumentParser(description='serve setting')
+
+    parser.add_argument('-i', '--input_csv', help='input csv file', required=True)
+    parser.add_argument('-o', '--output_dir', help='output img path(default=csv_path)')
+
+    return parser.parse_args()
+
+def read_csv(csv_path):
+    with open(csv_path, encoding="utf-8", newline='') as csv_file:
+        reader = csv.reader(csv_file)
+        csv_data = [data for data in reader]
+    return csv_data
+
+def show_get_result(get_failed, num_show):
+    if not get_failed:
+        print('all success!!')
+    else:
+        num_failed = len(get_failed)
+
+        print(f'{num_failed} failed... ')
+        pprint(get_failed[:num_show])
+        if num_failed > num_show:
+            print('...more')
+
+def into_nas(path):
+    return path.split('/', 1)[1]
+
+def sftp_get(file_paths: list, img_dir: str):
+    '''
+    - 설정된 SFTP 서버에서 file_paths 파일들을 output_dir/img 위치에 다운로드합니다.\n
+    - 가져오기 성공한 file_paths와 실패한 file_paths를 반환합니다.\n
+    - ex) file_path: ["Nota-its/dataset3/file1_name.ext", "Nota-its/dataset1/file4_name.ext"]
+    - ex) output_dir: "D:/Users/folder/"
+    '''
+    get_failed = []
+    successed = []
+    with paramiko.SSHClient() as ssh:
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy)
+        ssh.connect(ADDRESS, username=USERNAME, password=PASSWORD, port=PORT)
+        print('ssh connected')
+    
+        with ssh.open_sftp() as sftp:
+            print('sftp connected')
+            print('GET start')
+            for file_path in tqdm(file_paths):
+                file_name = split(file_path)[1]
+                file_nas_path = into_nas(file_path)
+                local_img_path = join(img_dir, file_name)
+                try:
+                    sftp.get(file_nas_path, local_img_path)
+                    successed.append(local_img_path)
+                except:
+                    get_failed.append(file_path)
+    
+    return successed, get_failed
+
+def get_series(csv_data, col_name, mapping=str):
+    idx = csv_data[0].index(col_name)
+    series = [mapping(row[idx]) for row in csv_data[1:]]
+    return series
+
+def get_img(csv_data, out_img_dir):
+    os.makedirs(out_img_dir, exist_ok=True)
+    img_paths = get_series(csv_data, "img_path")
+    success, failed = sftp_get(img_paths, out_img_dir)
+    show_get_result(failed, NUM_SHOW_FAILED)
+    return success, failed
+
+def obj_mapping(objs):
+    objs = objs.replace(',', '').split(' ')
+    try:
+        return list(map(int, objs))
+    except:
+        return objs
+
+def make_KITTI_format(bbox, object_class, size, t_size):
+    # useless values
+    truncated = 0
+    occlusion = 3
+    alpha = -1
+    dimension_3d = [-1, -1, -1]
+    location_3d = [-1, -1, -1]
+    rotation_y = -1
+    
+    # make KITTI format
+    bbox_format = f"{bbox[0]*t_size[0]//size[0]} {bbox[1]*t_size[1]//size[1]} {bbox[2]*t_size[0]//size[0]} {bbox[3]*t_size[1]//size[1]}"
+    dimension_3d_format = f"{dimension_3d[0]} {dimension_3d[1]} {dimension_3d[2]}"
+    location_3d_format = f"{location_3d[0]} {location_3d[1]} {location_3d[2]}"
+
+    kitti_label = f"{object_class} {truncated} {occlusion} {alpha} {bbox_format} {dimension_3d_format} {location_3d_format} {rotation_y}\n"
+
+    return kitti_label
+
+def pil_draw_rect(image, point1, point2):
+    draw = ImageDraw.Draw(image)
+    draw.rectangle((point1, point2), outline=(0, 0, 255), width=3)
+
+    return image
+
+def edit_ext(file, ext):
+    name, _ = os.path.splitext(file)
+    if '.' not in ext:
+        ext = '.' + ext
+    return name + ext
+
+def write_kitti(data, path):
+    with open(path, 'w') as f:
+        f.writelines(data)
+
+def csv_to_kitti(csv_data, t_size, out_img_dir, out_label_dir):
+    col_names = csv_data[0]
+    i_img_name = col_names.index("img_path")
+    i_cls_name = col_names.index("objects.class")
+    i_img_width = col_names.index("img_size.width")
+    i_img_height = col_names.index("img_size.height")
+    i_xmin = col_names.index("objects.bbox.x_min")
+    i_ymin = col_names.index("objects.bbox.y_min")
+    i_xmax = col_names.index("objects.bbox.x_max")
+    i_ymax = col_names.index("objects.bbox.y_max")
+
+    
+    cnt = 0
+    for i, data in tqdm(enumerate(csv_data[1:], start=1)):
+        img_name = split(data[i_img_name])[1]
+        file_name = edit_ext(img_name, 'txt')
+        img_width = int(data[i_img_width].replace(',', ''))
+        img_height = int(data[i_img_height].replace(',', ''))
+        
+
+        cls_names = data[i_cls_name].replace(',', '').split(' ')
+        xmins = data[i_xmin].replace(',', '').split(' ')
+        ymins = data[i_ymin].replace(',', '').split(' ')
+        xmaxs = data[i_xmax].replace(',', '').split(' ')
+        ymaxs = data[i_ymax].replace(',', '').split(' ')
+        kitti_data = []
+        for cls_name, xmin, ymin, xmax, ymax in zip(cls_names, xmins, ymins, xmaxs, ymaxs):
+            bbox = (int(xmin), int(ymin), int(xmax), int(ymax))
+            line = make_KITTI_format(bbox, cls_name, (1920, 1080), TARGET_SIZE)
+            kitti_data.append(line)
+            save_path = join(out_img_dir, file_name)
+            write_kitti(kitti_data, save_path)
+    
+    print(len(csv_data)-1, '개 중에 ', cnt, ' 성공')
+        #line = make_KITTI_format(bbox, obj_class, size, t_size)
+        #kitti.append(line)
+    
+
+def main():
+    args = get_parser()
+    input_csv = args.input_csv
+    output_dir = args.output_dir
+    if not output_dir:
+        output_dir = split(input_csv)[0]
+
+    csv_data = read_csv(input_csv)
+
+    out_img_dir = join(output_dir, 'img')
+    '''
+    successd, failed = get_img(csv_data, out_img_dir)
+    
+    
+    if failed:
+        ans = input('keep up? [Y/N] ')
+        if ans.upper() == 'N':
+            print('exit.')
+            os.system('pause')
+    '''
+    out_label_dir = join(output_dir, 'label')
+    csv_to_kitti(csv_data, TARGET_SIZE, out_img_dir, out_label_dir)
+    
+if __name__=="__main__":
+    main()

@@ -46,10 +46,22 @@ clicked_points = []
 clone = None
 
 
+# imread가 한글명 파일을 불러오지 못할 경우 imencode함수로 우회
+def imread(file_name, dtype=np.uint8):
+    try:
+        np_file = np.fromfile(file_name, dtype)
+        image = cv2.imdecode(np_file, cv2.IMREAD_COLOR)
+        return image
+    
+    except Exception as e:
+        print(e)
+        return None
+
+
 def GetArgument():
     ap = argparse.ArgumentParser()
-    ap.add_argument("-i", "--input_path", required=True, help="image input dir path")
-    ap.add_argument("-o", "--output_path", required=True, help="image output dir path")
+    ap.add_argument("-i", "--input_path", required=False, help="image input dir path")
+    ap.add_argument("-o", "--output_path", required=False, help="image output dir path")
     args = vars(ap.parse_args())
     
     return args['input_path'], args['output_path']
@@ -67,6 +79,7 @@ def main():
 
     # 이미지 디렉토리 경로를 입력 받는다.
     input_path, output_path = GetArgument()
+    
     # path의 이미지명을 받는다.
     image_names = os.listdir(input_path)
 
@@ -95,7 +108,7 @@ def main():
         image_name = image_names[idx]
 
         image_path = input_path + dir_del + image_name
-        image = cv2.imread(image_path)
+        image = imread(image_path)
 
         clone = image.copy()
         

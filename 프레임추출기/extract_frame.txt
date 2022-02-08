@@ -1,0 +1,28 @@
+@ECHO OFF
+@chcp 65001 1> NUL 2> NUL
+setlocal enableextensions enabledelayedexpansion
+
+set folder=
+set save=
+set path=%path%;ffmpeg\bin;
+
+:REDOA
+set /p folder=동영상 파일이 있는 폴더를 입력하세요.
+if "%folder%" == "" goto REDOA
+
+:REDOB
+set /p save=저장할 폴더 명을 입력하세요.
+if "%save%" == "" goto REDOB
+set save_folder=%save%
+
+set /p fm=영상 포맷을 입력하세요 (default: mp4)
+if "%fm%" == "" set fm=mp4
+
+set /p fr=저장할 frame rate를 입력하세요 (default: 0.4)
+if "%fr%" == "" set fr=0.4
+
+if not exist %save_folder% mkdir %save_folder%
+dir /s /b %folder%\*.%fm% > list.txt
+for /f "tokens=*" %%A in (list.txt) do ffmpeg -i %%A -y -r %fr% -v debug -q:v 2 %save_folder%\%%~nA-%%05d.jpg
+del list.txt
+pause

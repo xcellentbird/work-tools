@@ -1,0 +1,8 @@
+{
+	"ES_URL": "http://34.64.93.57:9200",
+	"ES_INDEX": "traffic",
+	"NAS_IP": "14.63.1.76",
+	"NAS_USERNAME": "Nota-its",
+	"NAS_PASSWORD": "Nota180928!!",
+	"NAS_SSH_PORT": 5052
+}

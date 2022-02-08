@@ -1,0 +1,27 @@
+{
+	"main": {
+		"car": "#4E8F3B", 
+		"bus": "#000B7D", 
+		"truck": "#A4DE92", 
+		"motorcycle": "#7D1500",
+                    	"hdv": "#DE92D1", 
+		"police": "#3B8F73", 
+		"ambulance": "#92DEC5",
+                    	"firetruck": "#8F4634", 
+		"pedestrian": "#DEA292", 
+		"bicycle": "#3B768F", 
+                    	"personal_mobility": "#EBF7FC"
+	},
+	"weather": {
+		"sunny": "#92C8DE",  
+		"rainy": "#8F6434",  
+		"foggy": "#DEBB92", 
+		"snow": "#3B3F8F", 
+		"snowy": "#9296DE"
+	},
+	"light": {
+		"day": "#8F7D33",
+		"night": "#DECF92",
+		"backlight": "#610D8F"
+	}	
+}
